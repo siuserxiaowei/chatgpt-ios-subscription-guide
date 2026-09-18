@@ -76,8 +76,21 @@ article = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', article)
 template = (ROOT/'template.html').read_text()
 template = template.replace('{{BODY}}', article).replace('{{TOC}}', '\n'.join(toc))
 # Never publish made-up QR codes or unfinished contact placeholders.
-if not (ROOT/'assets/wechat.png').exists() or not (ROOT/'assets/twitter.png').exists():
+wechat = (ROOT/'assets/wechat.png').exists()
+twitter = (ROOT/'assets/twitter.png').exists()
+if not wechat and not twitter:
     template = re.sub(r'<section class="contact".*?</section>', '', template, flags=re.S)
     template = re.sub(r'<a class="(?:contact-link|side-contact)".*?</a>', '', template, flags=re.S)
+else:
+    if wechat:
+        template = template.replace('<div class="qr-placeholder">等待提供微信二维码</div>', '<img src="assets/wechat.png" alt="微信联系二维码" width="240" height="240" loading="lazy">')
+    else:
+        template = re.sub(r'<div class="qr-card"><div class="qr-label"><span class="dot green"></span>.*?<p>扫码添加微信</p></div>', '', template, flags=re.S)
+        template = template.replace('扫码添加微信，或在 X / Twitter 关注我们。', '在 X / Twitter 关注小伟，交流想法与新发现。')
+        template = template.replace('微信 & X / Twitter ↗', 'X / Twitter ↗')
+    if twitter:
+        template = template.replace('<div class="qr-placeholder">等待提供推特二维码</div>', '<img src="assets/twitter.png" alt="小伟 X / Twitter 主页二维码" width="240" height="240" loading="lazy"><a href="https://x.com/_HIT_SZ_" target="_blank" rel="noopener noreferrer">@_HIT_SZ_ ↗</a>')
+    else:
+        template = re.sub(r'<div class="qr-card"><div class="qr-label"><span class="x-mark">.*?<p>扫码关注最新动态</p></div>', '', template, flags=re.S)
 (ROOT/'index.html').write_text(template)
 print(f'Converted {len(pages)-1} pages; {section} chapters; {len(blocks)} source blocks. Identifying samples redacted.')

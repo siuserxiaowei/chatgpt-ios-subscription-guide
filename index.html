@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f5f4ef">
+<meta name="description" content="iOS ChatGPT 订阅拦截与转移分析，PDF 网页阅读版。含章节目录与联系入口。">
+<title>iOS ChatGPT 订阅拦截与转移分析 · 小伟的资料库</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="progress" aria-hidden="true"></div>
+<header class="topbar"><a class="brand" href="#top"><span class="brand-icon">W.</span>小伟的资料库<span class="brand-sub">阅读与分享</span></a></header>
+<div class="layout" id="top">
+<aside class="sidebar"><div class="sidebar-title">本文目录 <span>CONTENTS</span></div><nav aria-label="章节目录"><a href="#section-1"><span>01</span>前置条件</a>
+<a href="#section-2"><span>02</span>网络环境配置</a>
+<a href="#section-3"><span>03</span>iOS 越狱设备配置</a>
+<a href="#section-4"><span>04</span>订阅流程详解</a>
+<a href="#section-5"><span>05</span>关键请求字段参考</a>
+<a href="#section-6"><span>06</span>流程架构图</a>
+<a href="#section-7"><span>07</span>核心原理概述</a>
+<a href="#section-8"><span>08</span>拦截：屏蔽回调请求</a>
+<a href="#section-9"><span>09</span>转移：修改 User ID 实现跨账号激活</a>
+<a href="#section-10"><span>10</span>关键请求详解</a>
+<a href="#section-11"><span>11</span>响应数据结构</a></nav><div class="sidebar-foot">原文日期 2026.09.17<br>网页整理 2026.09.18</div></aside>
+<main>
+<section class="hero"><div class="eyebrow"><span></span>技术文档 / 网页阅读版</div><h1>iOS ChatGPT<br>订阅拦截与转移分析<span class="period">.</span></h1><p class="subtitle">Pro 20x 开通机制与凭证重写技术全解</p><div class="meta"><span>原文 · 技术研究团队</span><span>11 个章节</span><span>来源 · 14 页 PDF</span></div><div class="hero-line"></div><p class="edition">本文为用户提供文档的排版转换，保留原文技术表述，未验证其有效性。示例中的密钥、账号与交易标识已隐去。</p><a class="start" href="#section-1">开始阅读 <span>↓</span></a></section>
+<details class="mobile-toc"><summary>浏览全部章节 <span>＋</span></summary><nav aria-label="移动端目录"><a href="#section-1"><span>01</span>前置条件</a>
+<a href="#section-2"><span>02</span>网络环境配置</a>
+<a href="#section-3"><span>03</span>iOS 越狱设备配置</a>
+<a href="#section-4"><span>04</span>订阅流程详解</a>
+<a href="#section-5"><span>05</span>关键请求字段参考</a>
+<a href="#section-6"><span>06</span>流程架构图</a>
+<a href="#section-7"><span>07</span>核心原理概述</a>
+<a href="#section-8"><span>08</span>拦截：屏蔽回调请求</a>
+<a href="#section-9"><span>09</span>转移：修改 User ID 实现跨账号激活</a>
+<a href="#section-10"><span>10</span>关键请求详解</a>
+<a href="#section-11"><span>11</span>响应数据结构</a></nav></details>
+<article><aside class="note">⚠️ 免责声明：本文档内容仅供学习研究与安全测试用途，请遵守相关法律法规及第三方服务条款。</aside>
+<div class="part">第一部分：iOS ChatGPT Pro 20x 强行开通教程</div>
+<h2 id="section-1"><span>01</span>前置条件</h2>
+<p>在开始操作之前，请确保已准备好以下所有条件：</p>
+<div class="table-scroll" tabindex="0"><table><thead><tr><th>序号</th><th>条件</th><th>说明</th></tr></thead><tbody><tr><td>1</td><td>一部 已越狱 的 iOS 设备</td><td>需要安装 Sileo 包管理器</td></tr><tr><td>2</td><td>手机上能正常打开 ChatGPT App</td><td>确保 App 版本可正常打开</td></tr><tr><td>3</td><td>一台安装了 Reqable 的电脑</td><td>支持 Windows / macOS</td></tr><tr><td>4</td><td>电脑上安装了 Clash 代理工具</td><td>用于科学上网</td></tr><tr><td>5</td><td>电脑与手机连接 同一 Wi-Fi 网络</td><td>用于中间人抓包</td></tr></tbody></table></div>
+<h2 id="section-2"><span>02</span>网络环境配置</h2>
+<h3>2.1 电脑端配置</h3>
+<p>1. 启动 Clash</p>
+<p>✅ 确保 Clash 正常运行（默认端口 7890 ）<br>         ❌ 关闭 系统代理<br>         ❌ 关闭 虚拟网卡（TUN 模式）</p>
+<p>2. 配置 Reqable 二级代理</p>
+<p>打开 Reqable</p>
+<p>创建二级代理规则，设置如下：</p>
+<p>协议: HTTP<br>           地址: 127.0.0.1<br>           端口: 7890（即 Clash 运行端口）</p>
+<p>Reqable 自身监听端口为 9000</p>
+<h3>2.2 手机端配置</h3>
+<p>1. 打开 设置 → Wi-Fi → 当前连接的网络 → 代理</p>
+<p>2. 选择 手动</p>
+<p>3. 填写代理信息：</p>
+<div class="table-scroll" tabindex="0"><table><thead><tr><th>字段</th><th>值</th></tr></thead><tbody><tr><td>服务器</td><td>电脑的局域网 IP 地址（如 192.168.x.x ）</td></tr><tr><td>端口</td><td>9000 （Reqable 的监听端口）</td></tr></tbody></table></div>
+<aside class="note">💡 提示：可以在电脑终端输入 ifconfig （macOS）或 ipconfig （Windows）查看本机IP 地址。</aside>
+<h3>2.3 网络链路示意</h3>
+<div class="source-block" tabindex="0" role="region" aria-label="原文表格或示意"><pre>  iPhone ──(Wi-Fi 代理 9000)──▶ Reqable ──(二级代理 7890)──▶ Clash ──▶ 互联网</pre></div>
+<h2 id="section-3"><span>03</span>iOS 越狱设备配置</h2>
+<h3>3.1 安装必要插件</h3>
+<p>在越狱设备的 Sileo 商店中安装以下插件：</p>
+<div class="table-scroll" tabindex="0"><table><thead><tr><th>插件名</th><th>用途</th></tr></thead><tbody><tr><td>SSL Kill Switch 3</td><td>绕过 SSL Pinning，使 HTTPS 请求可被抓包</td></tr></tbody></table></div>
+<h3>3.2 配置 SSL Kill Switch 3</h3>
+<p>1. 打开 SSL Kill Switch 3</p>
+<p>2. 确认开关已开启</p>
+<p>3. 默认全局生效即可</p>
+<h2 id="section-4"><span>04</span>订阅流程详解</h2>
+<h3>4.1 前提条件确认</h3>
+<p>ChatGPT Pro 20x 订阅适用于以下两种账号：</p>
+<p>情况 A：Apple 账号之前有订阅过 ChatGPT 服务（包括 Go、Plus、Pro 5x 任意一种）</p>
+<p>情况 B：从未订阅过 ChatGPT 会员的全新账号</p>
+<aside class="note">📌 注意：如果是情况 B（从未订阅过），需要先订阅一个 Go 或 Plus 会员，订阅后再继续后续步骤。如果之前有过订阅记录则可跳过此步。</aside>
+<h3>4.2 操作步骤</h3>
+<h4>Step 1：进入订阅页面</h4>
+<p>ChatGPT App → 设置 → 订阅 → 查看所有方案</p>
+<h4>Step 2：选择任意方案并点击订阅</h4>
+<p>在方案列表中选择任意一个方案（如 Plus 年付等）</p>
+<p>点击订阅按钮</p>
+<aside class="note">⚠️ 不要立即确认付款！</aside>
+<h4>Step 3：抓包并定位关键请求</h4>
+<p>在电脑的 Reqable 中，找到以下请求：</p>
+<div class="source-block" tabindex="0" role="region" aria-label="原文表格或示意"><pre>  POST https://p44-buy.itunes.apple.com/WebObjects/MZBuy.woa/wa/buyProduct</pre></div>
+<h4>Step 4：重写请求体</h4>
+<p>对上述请求的<strong>请求体（Request Body）</strong>进行拦截和重写，修改以下 3 个关键字段：</p>
+<div class="table-scroll" tabindex="0"><table><thead><tr><th>字段</th><th>原值（示例：Plus 年付）</th><th>替换为（Pro 20x 月付）</th></tr></thead><tbody><tr><td>offerName</td><td>oai_chatgpt_plus_20000_1y</td><td>oai_chatgpt_pro_20000_1m</td></tr><tr><td>price</td><td>200000</td><td>200000 （保持不变）</td></tr><tr><td>salableAdamId</td><td>6745416289</td><td>6657954405</td></tr></tbody></table></div>
+<aside class="note">📌 说明：由于 ChatGPT Pro 20x 方案已在前端页面关闭，无法直接通过 App 选择。需要通过拦截 App Store 的购买请求，并替换请求体中的商品标识字段来实现订阅。</aside>
+<h4>Step 5：确认订阅</h4>
+<p>完成请求体替换后，放行该请求。如果操作成功： 手机上将弹出 ChatGPT Pro 20x 的订阅确认弹<br>窗。</p>
+<h2 id="section-5"><span>05</span>关键请求字段参考</h2>
+<h3>5.1 ChatGPT 各套餐方案对照表</h3>
+<p>以下是所有 ChatGPT iOS 订阅方案的关键字段对照，可根据需要替换为对应套餐：</p>
+<div class="source-block" tabindex="0" role="region" aria-label="原文表格或示意"><pre>                                                   salableAdamI     mtSubscriptionAdamI
+ 套餐                     offerName                                                            price
+                                                  d                 d
+
+ Go 月付 $8               oai_chatgpt_go_1000_1m     6749460546       ❌                        8000
+
+ Plus 月付 $19.99         oai_chatgpt_plus_1999_1    6448311597       6749460546               19990
+                    m
+
+ Plus 年付 $200           oai_chatgpt_plus_20000_    6745416289       6749460546               20000
+                    1y                                                                       0
+
+ Pro    5x   月 付        oai_chatgpt_pro_10000_1    6759817441       6749460546               10000
+ $100               m                                                                        0
+
+                                                     salableAdamI    mtSubscriptionAdamI
+ 套餐                     offerName                                                              price
+                                                     d               d
+
+ Pro 20x 月 付            oai_chatgpt_pro_20000_1      6657954405      6749460546                20000
+ $200               m                                                                       0</pre></div>
+<aside class="note">💡 说 明 ： price            单 位 为 0.001 美 元 （ 如           200000 = $200.00 ） 。 Go 套 餐 没 有mtSubscriptionAdamId 字段，其他套餐共用订阅组 ID 6749460546 。</aside>
+<h3>5.2 App Store 购买请求说明</h3>
+<div class="source-block" tabindex="0" role="region" aria-label="原文表格或示意"><pre>  POST https://p44-buy.itunes.apple.com/WebObjects/MZBuy.woa/wa/buyProduct</pre></div>
+<p>请求体为 Apple Plist XML 格式，关键字段：</p>
+<div class="table-scroll" tabindex="0"><table><thead><tr><th>字段</th><th>说明</th><th>示例值（Pro 20x）</th></tr></thead><tbody><tr><td>appAdamId</td><td>ChatGPT App ID</td><td>6448311069</td></tr><tr><td>bid</td><td>Bundle ID</td><td>com.openai.chat</td></tr><tr><td>offerName</td><td>订阅方案名称</td><td>oai_chatgpt_pro_20000_1m</td></tr><tr><td>price</td><td>价格（单位：0.001 美元）</td><td>200000</td></tr><tr><td>salableAdamId</td><td>可售商品 ID</td><td>6657954405</td></tr><tr><td>mtSubscriptionAdamId</td><td>订阅组 ID</td><td>6749460546</td></tr><tr><td>buySubscription</td><td>是否为订阅购买</td><td>true</td></tr></tbody></table></div>
+<h2 id="section-6"><span>06</span>流程架构图</h2>
+<div class="source-block" tabindex="0" role="region" aria-label="原文表格或示意"><pre>  ┌──────────────────────────────────────────────────────────┐
+  │                      准备阶段                                 │
+  │ 1. 越狱 iOS 设备                                            │
+  │ 2. 安装 SSL Kill Switch 3                                  │
+
+  │ 3. 电脑安装 Clash + Reqable                                   │
+  │ 4. 配置网络代理链路                                               │
+  └──────────────────────┬───────────────────────────────────┘
+                         ▼
+  ┌──────────────────────────────────────────────────────────┐
+  │                      配置阶段                                 │
+  │ 1. Reqable 设置二级代理（→ Clash:7890）                           │
+  │ 2. 手机 Wi-Fi 代理指向 Reqable:9000                            │
+  └──────────────────────┬───────────────────────────────────┘
+                         ▼
+  ┌──────────────────────────────────────────────────────────┐
+  │                      执行阶段                                 │
+  │ 1. ChatGPT App → 设置 → 订阅 → 查看所有方案                      │
+  │ 2. 选择任意方案，点击订阅                                            │
+  │ 3. Reqable 拦截 buyProduct 请求                               │
+  │ 4. 替换 offerName / salableAdamId 字段                        │
+  │ 5. 放行请求 → 弹出 Pro 20x 订阅确认                                │
+  └──────────────────────────────────────────────────────────┘</pre></div>
+<div class="part">第二部分：iOS ChatGPT 订阅拦截与转移原理</div>
+<h2 id="section-7"><span>07</span>核心原理概述</h2>
+<p>整个流程涉及两个关键操作：拦截和转移。理解这两个概念是操作成功的前提。</p>
+<h3>7.1 订阅支付流程</h3>
+<p>当用户在 iOS 上订阅 ChatGPT 会员时，完整的支付链路如下：</p>
+<div class="source-block" tabindex="0" role="region" aria-label="原文表格或示意"><pre>  ┌─────────────────────────────────────────────────────────────────┐
+  │                        订阅支付流程                                   │
+  │                                                                 │
+  │ iPhone ──▶ App Store 购买 ──▶ 苹果返回支付凭证（fetch_token）              │
+  │                                       │                         │
+  │                                       ▼                         │
+  │              ChatGPT App 发送凭证到 RevenueCat ──▶ 激活订阅             │
+  │              （携带 app_user_id 绑定到具体账号）                           │
+  └─────────────────────────────────────────────────────────────────┘</pre></div>
+<h3>7.2 关键角色</h3>
+<div class="table-scroll" tabindex="0"><table><thead><tr><th>角色</th><th>说明</th></tr></thead><tbody><tr><td>App Store</td><td>处理真实付款，返回苹果签发的支付凭证</td></tr><tr><td>RevenueCat</td><td>ChatGPT 使用的第三方订阅管理平台，负责验证凭证并激活订阅</td></tr><tr><td>fetch_token</td><td>苹果支付凭证（Apple Signed Transaction），证明付款已完成</td></tr><tr><td>app_user_id</td><td>ChatGPT 账号的 Account ID，决定订阅绑定到哪个账号</td></tr></tbody></table></div>
+<h2 id="section-8"><span>08</span>拦截：屏蔽回调请求</h2>
+<h3>8.1 为什么要拦截</h3>
+<p>苹果支付完成后，ChatGPT App 会自动将支付凭证发送到 RevenueCat，将订阅绑定到当前登录的<br>ChatGPT 账号。如果想要将订阅转移到其他账号，就必须阻止这个自动回调过程。</p>
+<h3>8.2 需要屏蔽的 URL</h3>
+<p>在 Reqable 中设置网关屏蔽（拦截 / 阻断），屏蔽以下两个 URL：</p>
+<div class="source-block" tabindex="0" role="region" aria-label="原文表格或示意"><pre>  序
+        屏蔽的 URL                                           屏蔽原因
+  号
+
+  1      https://api.revenuecat.com/v1/receipts           阻止苹果支付凭证自动回调到
+                                                          RevenueCat 服务器
+
+  2      https://ios.chat.openai.com/backend-             阻止 ChatGPT 后端自动校验订阅
+        api/payments/rc/ios/verify/v4-2023-04-27          状态</pre></div>
+<aside class="note">⚠️ 重要：屏蔽这两个 URL 是为了防止充值回调自动完成。如果不屏蔽，支付凭证会自动绑定到当前登录的 ChatGPT 账号，后续就无法进行转移操作。</aside>
+<h3>8.3 拦截时序对比</h3>
+<div class="source-block" tabindex="0" role="region" aria-label="原文表格或示意"><pre>  正常流程（不拦截）：
+  iPhone 付款 ──▶ 凭证自动发送 ──▶ RevenueCat ──▶ 绑定到当前账号 ✅（无法转移）
+
+  拦截流程：
+  iPhone 付款 ──▶ 凭证发送 ──✖ Reqable 屏蔽 ──▶ 凭证未到达 RevenueCat
+                             │
+                             ▼
+                   手动抓取凭证，修改后重发 ──▶ 转移到目标账号 ✅</pre></div>
+<h2 id="section-9"><span>09</span>转移：修改 User ID 实现跨账号激活</h2>
+<h3>9.1 转移原理</h3>
+<p>当苹果支付完成后，ChatGPT App 会向 RevenueCat 发送一个凭证回调请求：</p>
+<div class="source-block" tabindex="0" role="region" aria-label="原文表格或示意"><pre>  POST https://api.revenuecat.com/v1/receipts</pre></div>
+<p>这个请求体中有两个核心字段：</p>
+<div class="source-block" tabindex="0" role="region" aria-label="原文表格或示意"><pre> 字段             含义                        作用
+
+  fetch_toke    苹 果 支 付 凭 证 （ Apple       证明用户已通过 App Store 完成了真实付款，是订阅生效的
+ n              Receipt）                  「钥匙」
+
+  app_user_i    ChatGPT 账号的 Account ID    决定这笔订阅绑定到哪个 ChatGPT 账号
+ d</pre></div>
+<aside class="note">💡 关键洞察： fetch_token 与 Apple ID 绑定（证明谁付了款），但与 ChatGPT 账号无关。RevenueCat 只根据 app_user_id 来决定将订阅权益分配给哪个用户。</aside>
+<h3>9.2 转移步骤</h3>
+<p>1. 通过 Reqable 抓包获取到完整的凭证回调请求（包含有效的 fetch_token ）</p>
+<p>2. 将请求体中的 app_user_id 替换为目标账号的 Account ID</p>
+<p>3. 重新发送该请求到 https://api.revenuecat.com/v1/receipts</p>
+<p>4. RevenueCat 收到合法凭证后，将订阅激活到目标账号上</p>
+<h3>9.3 转移流程示意</h3>
+<div class="source-block" tabindex="0" role="region" aria-label="原文表格或示意"><pre>  原始请求：fetch_token（支付凭证）+ app_user_id = &quot;账号A的ID&quot;
+                                             │
+                                    修改 app_user_id
+                                  │
+                                  ▼
+  转移请求：fetch_token（支付凭证）+ app_user_id = &quot;账号B的ID&quot;
+                                  │
+                                  ▼
+                       账号B 获得 Pro 20x 订阅 ✅</pre></div>
+<h3>9.4 如何获取目标账号的 app_user_id</h3>
+<p>目标 ChatGPT 账号的 app_user_id 可以通过以下方式获取：</p>
+<p>1. 在目标账号登录 ChatGPT App 的状态下</p>
+<p>2. 用 Reqable 抓包任意一个发往 RevenueCat 的请求</p>
+<p>3. 在请求体或 URL 中找到 app_user_id 字段</p>
+<h2 id="section-10"><span>10</span>关键请求详解</h2>
+<h3>10.1 苹果支付凭证回调请求</h3>
+<div class="source-block" tabindex="0" role="region" aria-label="原文表格或示意"><pre>  POST https://api.revenuecat.com/v1/receipts</pre></div>
+<p>关键 Header：</p>
+<div class="table-scroll" tabindex="0"><table><thead><tr><th>Header</th><th>值</th><th>说明</th></tr></thead><tbody><tr><td>authorization</td><td>Bearer [API_KEY_REDACTED]</td><td>RevenueCat API 密钥</td></tr><tr><td>x-client-bundle-id</td><td>com.openai.chat</td><td>ChatGPT 的 Bundle ID</td></tr><tr><td>Header</td><td>值</td><td>说明</td></tr><tr><td>x-platform</td><td>iOS</td><td>平台标识</td></tr><tr><td>x-storekit2-enabled</td><td>true</td><td>使用 StoreKit 2</td></tr></tbody></table></div>
+<p>关键 Body 字段：</p>
+<div class="table-scroll" tabindex="0"><table><thead><tr><th>字段</th><th>值</th><th>说明</th></tr></thead><tbody><tr><td>fetch_token</td><td>eyJhbGci... （JWS 格式）</td><td>苹果签发的支付凭证，转移的核心</td></tr><tr><td>app_user_id</td><td>[ACCOUNT_ID_REDACTED]</td><td>ChatGPT 账号 ID，转移时需替换此字段</td></tr><tr><td>product_id</td><td>oai_chatgpt_go_1000_1m</td><td>订阅产品 ID</td></tr><tr><td>price</td><td>8</td><td>价格（美元）</td></tr><tr><td>store_country</td><td>USA</td><td>商店区域</td></tr><tr><td>transaction_id</td><td>[TRANSACTION_ID_REDACTED]</td><td>App Store 交易 ID</td></tr></tbody></table></div>
+<h3>10.2 转移时需要修改的字段</h3>
+<div class="table-scroll" tabindex="0"><table><thead><tr><th>字段</th><th>操作</th><th>说明</th></tr></thead><tbody><tr><td>app_user_id</td><td>✏️ 必须修改</td><td>替换为目标账号的 Account ID</td></tr><tr><td>fetch_token</td><td>❌ 保持不变</td><td>这是苹果签发的合法支付凭证</td></tr><tr><td>app_transaction</td><td>❌ 保持不变</td><td>苹果的应用交易凭证</td></tr><tr><td>其他字段</td><td>❌ 保持不变</td><td>包括 Header 中的各项参数</td></tr></tbody></table></div>
+<h2 id="section-11"><span>11</span>响应数据结构</h2>
+<h3>11.1 成功响应示例</h3>
+<p>成功发送凭证回调后，RevenueCat 返回的订阅信息示例：</p>
+<div class="source-block" tabindex="0" role="region" aria-label="原文表格或示意"><pre>  {
+      &quot;request_date&quot;: &quot;2026-09-17T07:47:20Z&quot;,
+      &quot;subscriber&quot;: {
+        &quot;entitlements&quot;: {
+          &quot;chatgpt_go&quot;: {
+            &quot;product_identifier&quot;: &quot;oai_chatgpt_go_1000_1m&quot;,
+            &quot;purchase_date&quot;: &quot;2026-09-17T07:38:26Z&quot;,
+            &quot;expires_date&quot;: &quot;2026-10-17T07:38:26Z&quot;
+          }
+        },
+        &quot;original_app_user_id&quot;: &quot;[ACCOUNT_ID_REDACTED]&quot;,
+        &quot;subscriptions&quot;: {
+          &quot;oai_chatgpt_go_1000_1m&quot;: {
+            &quot;price&quot;: { &quot;amount&quot;: 8.0, &quot;currency&quot;: &quot;USD&quot; },
+            &quot;store&quot;: &quot;app_store&quot;,
+            &quot;period_type&quot;: &quot;normal&quot;,
+            &quot;ownership_type&quot;: &quot;PURCHASED&quot;,
+            &quot;original_purchase_date&quot;: &quot;2026-09-17T07:38:26Z&quot;,
+            &quot;expires_date&quot;: &quot;2026-10-17T07:38:26Z&quot;
+          }
+        }
+      }
+  }</pre></div>
+<h3>11.2 关键响应字段</h3>
+<div class="table-scroll" tabindex="0"><table><thead><tr><th>字段</th><th>说明</th></tr></thead><tbody><tr><td>entitlements</td><td>当前账号拥有的订阅权益</td></tr><tr><td>original_app_user_id</td><td>订阅绑定的账号 ID（转移后应为目标账号）</td></tr><tr><td>expires_date</td><td>订阅过期时间</td></tr><tr><td>ownership_type</td><td>PURCHASED 表示已购买</td></tr></tbody></table></div></article>
+
+<footer><span>小伟的资料库 · 文档阅读版</span><a href="#top">回到顶部 ↑</a></footer>
+</main></div>
+<script src="script.js"></script>
+</body></html>
